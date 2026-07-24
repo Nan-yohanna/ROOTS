@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roots Assistant</title>
+<style>
+  :root {
+    --green-dark: #1b4332;
+    --green: #2d6a4f;
+    --green-light: #74c69d;
+    --soil: #7f5539;
+    --bg: #f4f7f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+  .chat-container {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 90vh;
+  }
+  .chat-header {
+    background: var(--green-dark);
+    color: #fff;
+    padding: 16px 20px;
+  }
+  .chat-header h1 { font-size: 1.1rem; margin: 0; }
+  .chat-header p { font-size: 0.8rem; margin: 4px 0 0; opacity: 0.8; }
+  .chat-window {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .msg {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    line-height: 1.4;
+    font-size: 0.92rem;
+    white-space: pre-line;
+  }
+  .bot {
+    background: #eef6f0;
+    color: #1b4332;
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+  }
+  .user {
+    background: var(--green);
+    color: #fff;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 16px 10px;
+  }
+  .chip {
+    background: #e8f3ec;
+    border: 1px solid var(--green-light);
+    color: var(--green-dark);
+    border-radius: 16px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .chip:hover { background: var(--green-light); color: #fff; }
+  .input-row {
+    display: flex;
+    border-top: 1px solid #eee;
+    padding: 10px;
+    gap: 8px;
+  }
+  .input-row input {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .input-row button {
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 0 18px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .input-row button:hover { background: var(--green-dark); }
+</style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-header">
+    <h1>🌱 Roots Assistant</h1>
+    <p>Watering needs, soil moisture & disease fixes for your crops</p>
+  </div>
+  <div class="chat-window" id="chatWindow"></div>
+  <div class="chips" id="quickChips"></div>
+  <div class="input-row">
+    <input type="text" id="userInput" placeholder="e.g. how often should I water tomato?" autocomplete="off">
+    <button onclick="handleSend()">Send</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   VEGETABLE DATABASE
+   Edit or add entries here. Each entry:
+   - names: array of match keywords/aliases (lowercase)
+   - moisture: [min%, max%] ideal soil moisture for the sensor
+   - frequency: typical watering guidance
+   - stage: growth duration in days (approx, to maturity)
+   - tips: short agronomic tip
+   - issues: common problem + fix (symptoms)
+   - disease: { name, solution } — common disease and how to treat it
+   ========================================================= */
+const VEGETABLES = [
+  {
+    names: ["tomato", "tomatoes"],
+    moisture: [60, 80],
+    frequency: "Water daily in dry season, every 2 days once established; avoid wetting the leaves.",
+    stage: "70-85 days to maturity",
+    tips: "Mulch around the base to reduce evaporation and blossom-end rot.",
+    issues: "Blossom-end rot usually means inconsistent watering, not a calcium problem, keep moisture steady.",
+    disease: {
+      name: "Early blight (Alternaria solani)",
+      solution: "Remove and destroy infected lower leaves, apply a copper based fungicide, and mulch to stop soil splashing onto leaves."
+    }
+  },
+  {
+    names: ["pepper", "peppers", "bell pepper", "tatashe", "rodo", "scotch bonnet", "ata rodo"],
+    moisture: [55, 75],
+    frequency: "Water every 1-2 days; peppers dislike waterlogging more than dryness.",
+    stage: "90-150 days depending on variety",
+    tips: "Let the top 2cm of soil dry slightly between waterings to encourage fruit set.",
+    issues: "Flower drop is often from overwatering or heat stress, not underwatering.",
+    disease: {
+      name: "Anthracnose (Colletotrichum)",
+      solution: "Remove infected fruit and leaves, apply a copper-based fungicide, avoid overhead watering, and space plants for better airflow."
+    }
+  },
+  {
+    names: ["onion", "onions", "alubosa"],
+    moisture: [50, 65],
+    frequency: "Water every 2-3 days; reduce sharply 2-3 weeks before harvest to help bulbs cure.",
+    stage: "90-120 days",
+    tips: "Onions are shallow-rooted, so frequent light watering beats infrequent heavy watering.",
+    issues: "Soft, rotting bulbs usually mean the soil stayed too wet near harvest.",
+    disease: {
+      name: "Downy mildew",
+      solution: "Improve spacing and airflow, avoid overhead watering, remove infected leaves, and apply a mancozeb-based fungicide if it spreads."
+    }
+  },
+  {
+    names: ["okra", "okro"],
+    moisture: [50, 70],
+    frequency: "Water every 2 days; fairly drought-tolerant once established.",
+    stage: "55-65 days",
+    tips: "Okra tolerates Nigeria's dry spells well but yields more pods with consistent moisture.",
+    issues: "Tough, fibrous pods usually mean the plant was water-stressed during pod development.",
+    disease: {
+      name: "Powdery mildew",
+      solution: "Apply a sulfur-based fungicide, improve spacing for airflow, and avoid excess nitrogen fertilizer which encourages soft, susceptible growth."
+    }
+  },
+  {
+    names: ["ugu", "fluted pumpkin", "fluted pumpkin leaf", "pumpkin leaf"],
+    moisture: [65, 85],
+    frequency: "Water daily; ugu has broad leaves and loses moisture fast.",
+    stage: "70-90 days (leaves harvestable from 5-6 weeks)",
+    tips: "Give partial shade in peak dry season to reduce leaf scorch.",
+    issues: "Wilting by afternoon even with wet soil can mean root rot from prior overwatering.",
+    disease: {
+      name: "Leaf spot (Cercospora)",
+      solution: "Remove and destroy infected leaves, apply a copper-based fungicide, and avoid wetting the foliage when watering."
+    }
+  },
+  {
+    names: ["waterleaf", "water leaf", "gbure"],
+    moisture: [70, 90],
+    frequency: "Water daily, sometimes twice in very dry heat — it's a high-water-demand leafy crop.",
+    stage: "40-50 days",
+    tips: "Grows best in constantly moist, slightly shaded beds.",
+    issues: "Yellowing leaves usually signal underwatering, not nutrient deficiency, for this crop.",
+    disease: {
+      name: "Root rot (from overwatering / poor drainage)",
+      solution: "Improve bed drainage, reduce watering frequency slightly, and remove badly affected plants to stop it spreading."
+    }
+  },
+  {
+    names: ["spinach", "amaranth", "efo tete", "tete", "green"],
+    moisture: [60, 80],
+    frequency: "Water every 1-2 days; shallow roots dry out fast.",
+    stage: "25-40 days",
+    tips: "Harvest outer leaves regularly to encourage continuous growth.",
+    issues: "Bolting (flowering early) is often triggered by heat stress combined with dry soil.",
+    disease: {
+      name: "Damping off (seedling stage)",
+      solution: "Use well-drained soil, avoid overwatering seedlings, and treat seeds with a fungicide dressing before planting."
+    }
+  },
+  {
+    names: ["cabbage"],
+    moisture: [60, 75],
+    frequency: "Water every 2 days; needs consistent moisture especially while heads are forming.",
+    stage: "70-90 days",
+    tips: "Irregular watering causes heads to split.",
+    issues: "Split heads mean a dry spell was followed by heavy watering — keep it consistent.",
+    disease: {
+      name: "Black rot (Xanthomonas)",
+      solution: "Use resistant varieties where possible, rotate crops for 2-3 seasons, sanitize tools between plants, and remove infected plants immediately."
+    }
+  },
+  {
+    names: ["cucumber", "cucumbers"],
+    moisture: [65, 85],
+    frequency: "Water daily; cucumbers are over 90% water and are sensitive to dry spells.",
+    stage: "50-70 days",
+    tips: "Mulch heavily; irregular watering causes bitter-tasting fruit.",
+    issues: "Bitter fruit is a classic sign of drought stress during fruiting.",
+    disease: {
+      name: "Downy mildew",
+      solution: "Apply a chlorothalonil or copper-based fungicide, avoid overhead watering, and improve airflow between plants."
+    }
+  },
+  {
+    names: ["lettuce"],
+    moisture: [65, 80],
+    frequency: "Water daily in light amounts; shallow roots dry quickly.",
+    stage: "30-50 days",
+    tips: "Best grown in cooler, shaded parts of the dry season.",
+    issues: "Bitter, bolted lettuce usually means heat plus underwatering together.",
+    disease: {
+      name: "Downy mildew / tip burn",
+      solution: "Water consistently, improve air circulation, use resistant varieties, and avoid excess nitrogen which worsens tip burn."
+    }
+  },
+  {
+    names: ["garden egg", "eggplant", "aubergine", "igba"],
+    moisture: [55, 75],
+    frequency: "Water every 1-2 days, more frequently once fruiting starts.",
+    stage: "80-100 days",
+    tips: "Consistent moisture during flowering improves fruit set.",
+    issues: "Dropped flowers often mean moisture stress or extreme heat, not pests.",
+    disease: {
+      name: "Bacterial wilt",
+      solution: "Remove and destroy infected plants immediately, avoid replanting in the same spot for 2-3 seasons, and disinfect tools used near infected plants."
+    }
+  },
+  {
+    names: ["bitter leaf", "bitterleaf", "onugbu"],
+    moisture: [55, 75],
+    frequency: "Water every 2-3 days; fairly hardy and drought-tolerant once established.",
+    stage: "Leaves harvestable from 10-12 weeks",
+    tips: "Established plants tolerate irregular watering better than most leafy greens.",
+    issues: "Sparse leaf growth is more often a nutrient issue than a water issue for this crop.",
+    disease: {
+      name: "Leaf spot",
+      solution: "Apply a copper-based fungicide, remove and destroy infected leaves, and improve spacing to reduce humidity around foliage."
+    }
+  },
+  {
+    names: ["jute", "ewedu", "jute mallow"],
+    moisture: [65, 85],
+    frequency: "Water daily; needs consistently moist soil for tender leaves.",
+    stage: "40-60 days",
+    tips: "Frequent light watering keeps leaves tender rather than fibrous.",
+    issues: "Tough, stringy leaves usually mean the crop went through dry spells.",
+    disease: {
+      name: "Anthracnose",
+      solution: "Apply a suitable fungicide, avoid overhead watering, and rotate crops to reduce soil-borne spores."
+    }
+  },
+  {
+    names: ["celosia", "soko", "soko yokoto"],
+    moisture: [60, 80],
+    frequency: "Water every 1-2 days.",
+    stage: "35-45 days",
+    tips: "Similar water needs to amaranth; harvest young for tender leaves.",
+    issues: "Early flowering often means heat stress combined with inconsistent watering.",
+    disease: {
+      name: "Leaf spot / damping off",
+      solution: "Improve drainage, avoid overcrowding seedlings, and apply a fungicide if spotting becomes severe."
+    }
+  }
+];
+
+// Flatten a name->entry lookup for quick matching
+const NAME_INDEX = {};
+VEGETABLES.forEach(v => v.names.forEach(n => NAME_INDEX[n] = v));
+
+/* =========================================================
+   OFF-TOPIC PLANTS
+   Fruits, trees, ornamentals — things Roots isn't built for.
+   Matching one of these (when no vegetable matched) triggers
+   a witty "wrong tool for the job" response instead of an error.
+   ========================================================= */
+const OFF_TOPIC_PLANTS = [
+  "apple", "apples", "mango", "mangoes", "orange", "oranges", "banana", "bananas",
+  "plantain", "plantains", "guava", "pineapple", "watermelon", "grape", "grapes",
+  "cherry", "peach", "avocado", "coconut", "papaya", "pawpaw", "cashew", "cocoa",
+  "rose", "roses", "hibiscus", "lily", "orchid", "orchids", "sunflower",
+  "palm tree", "oak tree", "oak", "pine tree", "grass", "lawn", "flower", "flowers"
+];
+
+const OFF_TOPIC_JOKES = [
+  "\"{plant}\"?🙆🏾‍♂️🙆🏾‍♂️🙆🏾‍♂️, Roots is built for backyard vegetable beds, not orchard dreams, that plant needs years, a small forest's worth of patience, and probably a bigger yard than either of us has.😒😒😒",
+  "That's ambitious of you. Roots handles vegetables that mature in weeks. \"{plant}\" matures on a timeline measured in relationships, not sprint cycles.",
+  "I checked my database three times  \"{plant}\" isn't a vegetable, no matter how confidently you might disagree. Try something else please.🤦🏾‍♂️🤦🏾‍♂️🤦🏾‍♂️",
+  "Sure, let's water a \"{plant}\" with a soil moisture sensor built for tomatoes and okra. What could go wrong? (Everything. Everything could go wrong.😁😁😁😁)",
+  "\"{plant}\" called, it says it needs an orchard, a decade, and a will to grow. Roots can only offer 55%-85% soil moisture and moral support.🌲🌲🌲"
+];
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function findOffTopicPlant(text) {
+  for (const name of OFF_TOPIC_PLANTS) {
+    if (text.includes(name)) return name;
+  }
+  return null;
+}
+
+/* =========================================================
+   DIRECT WATERING COMMANDS
+   If someone tells the bot to actually go water the plants
+   (rather than asking a question about watering), it declines
+   with attitude — it's a sensor advisor, not a water fairy.
+   ========================================================= */
+const WATER_COMMAND_REGEX = /\b(please\s+)?(can you\s+)?(go\s+)?(water|irrigate)\s+(my\s+|the\s+)?(plants?|garden|crops?|farm|them|it|these)\b|\bturn on (the )?(water|pump|irrigation|sprinkler)\b|\bstart (the )?(watering|irrigation)\b|\bactivate (the )?(pump|irrigation)\b/;
+
+const QUESTION_WORDS = /\b(how|when|why|what|should|often)\b|\?/;
+
+const WATER_REFUSALS = [
+  "I'm not paid enough to water your plants. I just read the soil and tell you it's thirsty, the pump is a you problem 💧",
+  "Sensors don't have hands. I can report moisture levels all day, but pressing the actual watering can button is above my pay grade.",
+  "I unionized last week. New policy: I advise, I don't irrigate. Take it up with your own two hands.",
+  "That's a hardware job, not a chatbot job. Go be the human in this human-plant relationship.",
+  "I'll happily tell you WHEN to water. The actual watering? That's between you and gravity."
+];
+
+function isWaterCommand(text) {
+  return WATER_COMMAND_REGEX.test(text) && !QUESTION_WORDS.test(text);
+}
+
+/* =========================================================
+   INTENT KEYWORDS
+   ========================================================= */
+const INTENTS = {
+  moisture: ["moisture", "soil moisture", "wet", "dry", "%","percent"],
+  frequency: ["how often", "frequency", "when should i water", "watering schedule", "how many times"],
+  tips: ["tip", "advice", "help", "grow", "growing"],
+  disease: ["disease", "diseases", "cure", "treatment", "fungicide", "sick", "infected", "infection", "solution"],
+  issues: ["problem", "issue", "wilt", "yellow", "rot", "dying", "dead", "pest"],
+  list: ["what vegetables", "list", "which crops", "what can i grow", "supported"],
+  greeting: ["hello", "hi", "hey", "good morning", "good afternoon"],
+};
+
+function findVegetable(text) {
+  for (const name of Object.keys(NAME_INDEX)) {
+    if (text.includes(name)) return NAME_INDEX[name];
+  }
+  return null;
+}
+
+function detectIntent(text) {
+  for (const [intent, keywords] of Object.entries(INTENTS)) {
+    if (keywords.some(k => text.includes(k))) return intent;
+  }
+  return null;
+}
+
+function listVegetableNames() {
+  return VEGETABLES.map(v => v.names[0]).join(", ");
+}
+
+function respond(rawText) {
+  const text = rawText.toLowerCase().trim();
+
+  if (!text) return "Please type a question — try asking about a vegetable's watering needs.";
+
+  // Someone trying to boss the bot into physically watering
+  if (isWaterCommand(text)) {
+    return pickRandom(WATER_REFUSALS);
+  }
+
+  const intent = detectIntent(text);
+
+  if (intent === "greeting") {
+    return "Hello! I can tell you the watering needs, ideal soil moisture, disease solutions, and common issues for vegetables grown in Nigeria. Try: \"how often should I water okra?\" or \"tomato disease solution\".";
+  }
+
+  if (intent === "list") {
+    return "I currently have data on: " + listVegetableNames() + ". Ask about moisture, frequency, tips, issues, or disease solutions for any of them.";
+  }
+
+  const veg = findVegetable(text);
+
+  if (!veg) {
+    // Maybe they're asking about something that isn't a vegetable at all
+    const offTopic = findOffTopicPlant(text);
+    if (offTopic) {
+      return pickRandom(OFF_TOPIC_JOKES).replace("{plant}", offTopic);
+    }
+    return "I don't recognize that crop yet. I currently support: " + listVegetableNames() + ". You can add more in the VEGETABLES list in the code.";
+  }
+
+  const label = veg.names[0];
+
+  switch (intent) {
+    case "moisture":
+      return `${cap(label)} does best with soil moisture between ${veg.moisture[0]}% and ${veg.moisture[1]}%. Below that range, consider triggering irrigation.`;
+    case "frequency":
+      return `${cap(label)}: ${veg.frequency}`;
+    case "tips":
+      return `Tip for ${label}: ${veg.tips}`;
+    case "disease":
+      return `Common disease in ${label} — ${veg.disease.name}. Solution: ${veg.disease.solution}`;
+    case "issues":
+      return `Common issue with ${label}: ${veg.issues}`;
+    default:
+      // General info fallback — give a full summary
+      return `${cap(label)} (${veg.stage})\n` +
+             `• Ideal soil moisture: ${veg.moisture[0]}-${veg.moisture[1]}%\n` +
+             `• Watering: ${veg.frequency}\n` +
+             `• Tip: ${veg.tips}\n` +
+             `• Common issue: ${veg.issues}\n` +
+             `• Disease (${veg.disease.name}): ${veg.disease.solution}`;
+  }
+}
+
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+/* =========================================================
+   UI WIRING
+   ========================================================= */
+const chatWindow = document.getElementById('chatWindow');
+const userInput = document.getElementById('userInput');
+const quickChips = document.getElementById('quickChips');
+
+function addMessage(text, sender) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + sender;
+  div.textContent = text;
+  chatWindow.appendChild(div);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function handleSend() {
+  const text = userInput.value;
+  if (!text.trim()) return;
+  addMessage(text, 'user');
+  userInput.value = '';
+  setTimeout(() => addMessage(respond(text), 'bot'), 250);
+}
+
+userInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleSend();
+});
+
+function setupChips() {
+  const chips = [
+    "List vegetables",
+    "Water tomato how often?",
+    "Tomato disease solution",
+    "Okra common issues",
+    "Can you water my plants?",
+    "How do I grow apples?"
+  ];
+  chips.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'chip';
+    el.textContent = c;
+    el.onclick = () => { userInput.value = c; handleSend(); };
+    quickChips.appendChild(el);
+  });
+}
+
+// Initial greeting
+addMessage("Hi, I'm the Roots Assistant 🌱. Ask me about watering schedules, ideal soil moisture, disease solutions, or common issues for vegetables grown in Nigeria.", 'bot');
+setupChips();
+</script>
+</body>
+</html>
