@@ -125,17 +125,17 @@
 </div>
 
 <script>
-/* =========================================================
+/*
    VEGETABLE DATABASE
    Edit or add entries here. Each entry:
-   - names: array of match keywords/aliases (lowercase)
+   - names: array of match keywords (lowercase)
    - moisture: [min%, max%] ideal soil moisture for the sensor
    - frequency: typical watering guidance
    - stage: growth duration in days (approx, to maturity)
-   - tips: short agronomic tip
+   - tips: short plant tip
    - issues: common problem + fix (symptoms)
-   - disease: { name, solution } — common disease and how to treat it
-   ========================================================= */
+   - disease: { name, solution } - common disease and how to treat it
+  */
 const VEGETABLES = [
   {
     names: ["tomato", "tomatoes"],
@@ -311,12 +311,12 @@ const VEGETABLES = [
 const NAME_INDEX = {};
 VEGETABLES.forEach(v => v.names.forEach(n => NAME_INDEX[n] = v));
 
-/* =========================================================
+/*
    OFF-TOPIC PLANTS
-   Fruits, trees, ornamentals — things Roots isn't built for.
+   Fruits, trees, ornamentals. Things Roots isn't built for.
    Matching one of these (when no vegetable matched) triggers
-   a witty "wrong tool for the job" response instead of an error.
-   ========================================================= */
+   a funny response instead of an error.
+   */
 const OFF_TOPIC_PLANTS = [
   "apple", "apples", "mango", "mangoes", "orange", "oranges", "banana", "bananas",
   "plantain", "plantains", "guava", "pineapple", "watermelon", "grape", "grapes",
@@ -344,12 +344,11 @@ function findOffTopicPlant(text) {
   return null;
 }
 
-/* =========================================================
+/*
    DIRECT WATERING COMMANDS
-   If someone tells the bot to actually go water the plants
-   (rather than asking a question about watering), it declines
-   with attitude — it's a sensor advisor, not a water fairy.
-   ========================================================= */
+   If someone tells the bot to actually go water the plants, it declines
+   with attitude.
+   */
 const WATER_COMMAND_REGEX = /\b(please\s+)?(can you\s+)?(go\s+)?(water|irrigate)\s+(my\s+|the\s+)?(plants?|garden|crops?|farm|them|it|these)\b|\bturn on (the )?(water|pump|irrigation|sprinkler)\b|\bstart (the )?(watering|irrigation)\b|\bactivate (the )?(pump|irrigation)\b/;
 
 const QUESTION_WORDS = /\b(how|when|why|what|should|often)\b|\?/;
@@ -366,9 +365,9 @@ function isWaterCommand(text) {
   return WATER_COMMAND_REGEX.test(text) && !QUESTION_WORDS.test(text);
 }
 
-/* =========================================================
+/* 
    INTENT KEYWORDS
-   ========================================================= */
+    */
 const INTENTS = {
   moisture: ["moisture", "soil moisture", "wet", "dry", "%","percent"],
   frequency: ["how often", "frequency", "when should i water", "watering schedule", "how many times"],
@@ -454,9 +453,9 @@ function respond(rawText) {
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-/* =========================================================
+/* 
    UI WIRING
-   ========================================================= */
+    */
 const chatWindow = document.getElementById('chatWindow');
 const userInput = document.getElementById('userInput');
 const quickChips = document.getElementById('quickChips');
