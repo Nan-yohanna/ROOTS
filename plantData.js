@@ -166,15 +166,9 @@ export function listPlantNames() {
 return plants.map((p) => p.name);
 }
 
-// ---------------------------------------------------------------------
 // Intent detection (ported from the standalone Roots Assistant chatbot)
 //
-// Lets the UI tell narrow, single-field questions ("how often should I
-// water tomato?", "okra issues?", "list crops") apart from general /
-// full-info requests ("tomato", "tell me about okra"). This is what the
-// assistant page uses to decide whether to show the full plant card
-// with the "Apply settings" button, or just a short text reply.
-// ---------------------------------------------------------------------
+
 export const INTENTS = {
 moisture: ["moisture", "soil moisture", "wet", "dry", "%", "percent"],
 frequency: ["how often", "frequency", "when should i water", "watering schedule", "how many times"],
