@@ -6,4 +6,4 @@ The System consists of the following components: Soil moisture sensor, water lev
 
 The ESP32-S3 is the brain of the system, recieving input from the water level sensor, soil moisture sensor and uses this input to control the relay module which in turn controls the pump.
 
-To view the roots dashboard, visit this link https://root-dashboard-five.vercel.app/in
+To view the roots dashboard, visit this link https://root-dashboard-five.vercel.app/
