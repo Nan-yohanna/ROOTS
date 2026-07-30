@@ -1,5 +1,5 @@
 # ROOTS.
-ROOTS FIRMWARE.
+Automated plant watering system firmware.
 
 This is the source code of an automated plant watering system,
 The System consists of the following components: Soil moisture sensor, water level sensor, single relay module, small pump and an ESP32-S3 microcontroller.
